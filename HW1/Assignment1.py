@@ -168,6 +168,21 @@ class ComputerVisionAssignment:
         Fill your code here
 
         """
+        m00, m10, m01, x_bar, y_bar, mu20, mu02, mu11 = self.compute_moments()
+        theta = 0.5 * np.arctan2(2 * mu11, mu20 - mu02)
+        orientation = np.degrees(-theta)
+
+        lambda1 = ((mu20 + mu02) + np.sqrt( 4 * mu11**2 + (mu20 - mu02)**2 )) / (2 * m00) 
+        lambda2 = ((mu20 + mu02) - np.sqrt( 4 * mu11**2 + (mu20 - mu02)**2 )) / (2 * m00) 
+
+        eccentricity = np.sqrt(1 - (lambda2 / lambda1))
+
+        glasses_with_ellipse = cv2.cvtColor(self.binary_image, cv2.COLOR_GRAY2BGR)
+        center = (int(x_bar), int(y_bar))
+        axes = (int(2 * np.sqrt(lambda1)), int(2 * np.sqrt(lambda2)))
+        color = (0, 0, 255)  
+        thickness = 1
+        cv2.ellipse(glasses_with_ellipse, center, axes, -orientation, 0, 360, color, thickness)
 
         return orientation, eccentricity, glasses_with_ellipse
 
@@ -192,29 +207,29 @@ if __name__ == "__main__":
 
     # Task 4: Swap color channels
     swapped_image = assignment.swap_color_channels()
-    cv2.imwrite("swapped_image.png", swapped_image)
+    # cv2.imwrite("swapped_image.png", swapped_image)
 
     # Task 5: Foliage detection
     foliage_image = assignment.foliage_detection()
-    cv2.imwrite("foliage_image.png", foliage_image)
+    # cv2.imwrite("foliage_image.png", foliage_image)
 
     # Task 6: Shift the image
     shifted_image = assignment.shift_image()
-    cv2.imwrite("shifted_image.png", shifted_image) 
+    # cv2.imwrite("shifted_image.png", shifted_image) 
 
     # Task 7: Rotate the image
     rotated_image = assignment.rotate_image()
-    cv2.imwrite("rotated_image.png", rotated_image)
+    # cv2.imwrite("rotated_image.png", rotated_image)
 
     # Task 8: Similarity transform
     transformed_image = assignment.similarity_transform(
         scale=2.0, theta=45.0, shift=[100, 100]
     )
-    cv2.imwrite("transformed_image.png", transformed_image)
+    # cv2.imwrite("transformed_image.png", transformed_image)
 
     # Task 9: Grayscale conversion
     gray_image = assignment.convert_to_grayscale()
-    cv2.imwrite("gray_image.png", gray_image)
+    # cv2.imwrite("gray_image.png", gray_image)
 
     glasses_assignment = ComputerVisionAssignment(
         "glasses_outline.png", "glasses_outline.png"
@@ -227,3 +242,6 @@ if __name__ == "__main__":
     orientation, eccentricity, glasses_with_ellipse = (
         glasses_assignment.compute_orientation_and_eccentricity()
     )
+    # print(f"Orientation: {orientation}")
+    # print(f"Eccentricity: {eccentricity}")
+    # cv2.imwrite("glasses_with_ellipse.png", glasses_with_ellipse)
