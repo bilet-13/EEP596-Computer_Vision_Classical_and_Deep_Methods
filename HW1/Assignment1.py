@@ -69,15 +69,15 @@ class ComputerVisionAssignment:
         Fill your code here
 
         """
-        foliage_image = self.image.copy()
+        height, width = self.image.shape[:2]
+        foliage_image = np.zeros((height, width), dtype=np.uint8) 
         mask = (self.image[:, :, 1] >= 50) & \
                (self.image[:, :, 0] < 50) & \
                (self.image[:, :, 2] < 50)
 
-        foliage_image[:, :, :] = np.where(mask[:, :, None], 255, 0)
+        foliage_image[:, :] = np.where(mask[:, :], 255, 0)
 
         return foliage_image
-
     def shift_image(self):
         """
         Fill your code here
@@ -106,7 +106,7 @@ class ComputerVisionAssignment:
 
         """
         height, width = self.image.shape[:2]
-        center = (width / 2.0, height / 2.0)
+        center = (0, 0)
 
         transformMatrix = cv2.getRotationMatrix2D(center, -theta, scale)
         transformMatrix[0, 2] += shift[0]
@@ -132,27 +132,26 @@ class ComputerVisionAssignment:
 
         gray_image = np.clip(gray_image, 0, 255)
 
-        return gray_image.astype(np.uint8)
+        return np.round(gray_image).astype(np.uint8)
 
     def compute_moments(self):
         """
         Fill your code here
 
         """
-        mask = self.binary_image > 0
         height, width = self.binary_image.shape[:2]
         y_idxs, x_idxs = np.indices((height, width))
 
-        m00 = np.sum(mask)
-        m10 = np.sum(x_idxs * mask)
-        m01 = np.sum(y_idxs * mask)
+        m00 = np.sum(self.binary_image) 
+        m10 = np.sum(x_idxs * self.binary_image)
+        m01 = np.sum(y_idxs * self.binary_image)
         
         x_bar = m10 / m00
         y_bar = m01 / m00
 
-        mu20 = np.sum(((x_idxs - x_bar) ** 2) * mask)
-        mu02 = np.sum(((y_idxs - y_bar) ** 2) * mask)
-        mu11 = np.sum((x_idxs - x_bar) * (y_idxs - y_bar) * mask)
+        mu20 = np.sum(((x_idxs - x_bar) ** 2) * self.binary_image)
+        mu02 = np.sum(((y_idxs - y_bar) ** 2) * self.binary_image)
+        mu11 = np.sum((x_idxs - x_bar) * (y_idxs - y_bar) * self.binary_image)
         # Print the results
         print("First-Order Moments:")
         print(f"Standard (Raw) Moments: M00 = {m00}, M10 = {m10}, M01 = {m01}")
@@ -170,7 +169,7 @@ class ComputerVisionAssignment:
         """
         m00, m10, m01, x_bar, y_bar, mu20, mu02, mu11 = self.compute_moments()
         theta = 0.5 * np.arctan2(2 * mu11, mu20 - mu02)
-        orientation = np.degrees(-theta)
+        orientation = np.degrees(theta)
 
         lambda1 = ((mu20 + mu02) + np.sqrt( 4 * mu11**2 + (mu20 - mu02)**2 )) / (2 * m00) 
         lambda2 = ((mu20 + mu02) - np.sqrt( 4 * mu11**2 + (mu20 - mu02)**2 )) / (2 * m00) 
@@ -182,7 +181,7 @@ class ComputerVisionAssignment:
         axes = (int(2 * np.sqrt(lambda1)), int(2 * np.sqrt(lambda2)))
         color = (0, 0, 255)  
         thickness = 1
-        cv2.ellipse(glasses_with_ellipse, center, axes, -orientation, 0, 360, color, thickness)
+        cv2.ellipse(glasses_with_ellipse, center, axes, orientation, 0, 360, color, thickness)
 
         return orientation, eccentricity, glasses_with_ellipse
 
