@@ -140,13 +140,21 @@ class ComputerVisionAssignment():
     # Store the computed gradient magnitute
     self.gdMagnitute_images =[]
 
-    for i, (vimg, himg) in enumerate(zip(self.vDerive_images, self.hDerive_images)):
-      image = np.zeros(vimg.shape, dtype=np.float32)
-      h, w = vimg.shape
+    gussian_kernel = [0.25, 0.5, 0.25]
+    soblel_kernel = [0.5, 0, -0.5] # flipped sober kernel for vertical derivative
+
+    for i in range(5):
+      blur_image = cv2.imread(f'gaussain blur {i}.png', cv2.IMREAD_GRAYSCALE)
+
+      v_image = self.gussian_operation(blur_image, gussian_kernel, soblel_kernel)
+      h_image = self.gussian_operation(blur_image, soblel_kernel, gussian_kernel)
+
+      image = np.zeros(v_image.shape, dtype=np.float32)
+      h, w = v_image.shape
 
       for y in range(h):
         for x in range(w):
-          image[y, x] = np.sqrt(abs(vimg[y, x]) + abs(himg[y, x]))
+          image[y, x] = abs(v_image[y, x]) + abs(h_image[y, x])
 
       image = 4 * image 
       image = np.rint(image)
@@ -155,6 +163,7 @@ class ComputerVisionAssignment():
       self.gdMagnitute_images.append(image)
 
       cv2.imwrite(f'gradient {i}.jpg', image)
+
     return self.gdMagnitute_images
     
   def scipy_convolve(self):
@@ -178,7 +187,9 @@ class ComputerVisionAssignment():
       image = np.clip(image, 0, 255).astype(np.uint8)
 
       self.scipy_smooth.append(image)
+
       cv2.imwrite(f'scipy smooth {i}.jpg', image)
+
     return self.scipy_smooth
 
   #def box_filter(self, num_repetitions):
