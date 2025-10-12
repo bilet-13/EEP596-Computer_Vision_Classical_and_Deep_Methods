@@ -39,7 +39,7 @@ class ComputerVisionAssignment():
     cv2.imwrite('floodfille.jpg', output_image)
     return output_image
 
-  def gussian_operation(self, img, kernel_x, kernel_y, is_negative=False):
+  def gussian_operation(self, img, kernel_x, kernel_y):
     h, w = img.shape
 
     grid = np.zeros((h, w), dtype=np.float32)
@@ -52,7 +52,7 @@ class ComputerVisionAssignment():
 
             grid[y, x] = np.dot([left, mid, right], kernel_x)
 
-    result = np.zeros((h, w), dtype=np.uint8)
+    result = np.zeros((h, w), dtype=np.float32)
 
     for y in range(h):
         for x in range(w):
@@ -62,11 +62,7 @@ class ComputerVisionAssignment():
 
             val = np.dot([up, mid, down], kernel_y) 
 
-            if is_negative:
-                val = 2 * val + 127
-            val = int(round(val))
-
-            result[y, x] = np.clip(val, 0, 255)
+            result[y, x] = val
 
     return result 
 
@@ -85,69 +81,105 @@ class ComputerVisionAssignment():
         
         # Store the blurred image
         self.blurred_images.append(image)
+
+        image = np.rint(image)
+        image = np.clip(image, 0, 255).astype(np.uint8)
         
-        cv2.imwrite(f'gaussain blur {i}.jpg', image)
+        cv2.imwrite(f'gaussain blur {i}.png', image)
     return self.blurred_images
 
   def gaussian_derivative_vertical(self):
     # Define kernels
     gussian_kernel = [0.25, 0.5, 0.25]
-    soblel_kernel = [-0.5, 0, 0.5] # flipped sober kernel for vertical derivative
-
+    soblel_kernel = [0.5, 0, -0.5] # flipped sober kernel for vertical derivative
     # Store images
     self.vDerive_images = []
     for i in range(5):
       # Apply horizontal and vertical convolution
-      image = cv2.imread(f'gaussain blur {i}.jpg', cv2.IMREAD_GRAYSCALE)
+      image = cv2.imread(f'gaussain blur {i}.png', cv2.IMREAD_GRAYSCALE)
 
-      image = self.gussian_operation(image, gussian_kernel, soblel_kernel, is_negative=True)
+      image = self.gussian_operation(image, gussian_kernel, soblel_kernel)
+
+      image = 2 * image + 127
+      image = np.rint(image)
+      image = np.clip(image, 0, 255).astype(np.uint8)
       
       self.vDerive_images.append(image)
-      cv2.imwrite(f'vertical {i}.jpg', image)
+
+
+      cv2.imwrite(f'vertical {i}.png', image)
 
     return self.vDerive_images
 
   def gaussian_derivative_horizontal(self):
     #Define kernels
     gussian_kernel = [0.25, 0.5, 0.25]
-    soblel_kernel = [-0.5, 0, 0.5] # flipped sober kernel for horizontal derivative
+    soblel_kernel = [0.5, 0, -0.5] # flipped sober kernel for horizontal derivative
 
     # Store images after computing horizontal derivative
     self.hDerive_images = []
 
     for i in range(5):
-
       # Apply horizontal and vertical convolution
-      image = cv2.imread(f'gaussain blur {i}.jpg', cv2.IMREAD_GRAYSCALE)
+      image = cv2.imread(f'gaussain blur {i}.png', cv2.IMREAD_GRAYSCALE)
 
-      image = self.gussian_operation(image, soblel_kernel, gussian_kernel, is_negative=True)
+      image = self.gussian_operation(image, soblel_kernel, gussian_kernel)
+      
+      print(image.dtype)
+      image = 2 * image + 127
+      image = np.rint(image)
+      image = np.clip(image, 0, 255).astype(np.uint8)
 
       self.hDerive_images.append(image)
-      cv2.imwrite(f'horizontal {i}.jpg', image)
+
+      cv2.imwrite(f'horizontal {i}.png', image)
 
     return self.hDerive_images
 
-  #def gradient_magnitute(self):
-  #  # Store the computed gradient magnitute
-  #  self.gdMagnitute_images =[]
-  #  for i, (vimg, himg) in enumerate(zip(self.vDerive_images, self.hDerive_images)):
-  #    image = 
-  #    self.gdMagnitute_images.append(image)
-  #    #cv2.imwrite(f'gradient {i}.jpg', image)
-  #  return self.gdMagnitute_images
-    
-  #def scipy_convolve(self):
-  #  # Define the 2D smoothing kernel
-   
-  #  # Store outputs
-  #  self.scipy_smooth = []
+  def gradient_magnitute(self):
+    # Store the computed gradient magnitute
+    self.gdMagnitute_images =[]
 
-  #  for i in range(5):
-  #    # Perform convolution
-  #    image=
-  #    self.scipy_smooth.append(image)
-  #    #cv2.imwrite(f'scipy smooth {i}.jpg', image)
-  #  return self.scipy_smooth
+    for i, (vimg, himg) in enumerate(zip(self.vDerive_images, self.hDerive_images)):
+      image = np.zeros(vimg.shape, dtype=np.float32)
+      h, w = vimg.shape
+
+      for y in range(h):
+        for x in range(w):
+          image[y, x] = np.sqrt(abs(vimg[y, x]) + abs(himg[y, x]))
+
+      image = 4 * image 
+      image = np.rint(image)
+      image = np.clip(image, 0, 255).astype(np.uint8)
+
+      self.gdMagnitute_images.append(image)
+
+      cv2.imwrite(f'gradient {i}.jpg', image)
+    return self.gdMagnitute_images
+    
+  def scipy_convolve(self):
+    # Define the 2D smoothing kernel
+    gussian_kernel = [0.25, 0.5, 0.25]
+    sober_kernel = [0.5, 0, -0.5]
+
+    kernel_2d = np.outer(sober_kernel, gussian_kernel)
+
+    # Store outputs
+    self.scipy_smooth = []
+
+    for i in range(5):
+      # Perform convolution
+      image = cv2.imread(f'gaussain blur {i}.png', cv2.IMREAD_GRAYSCALE)
+
+      image = scipy.signal.convolve2d(image,kernel_2d, mode='same', boundary='fill', fillvalue=0)
+
+      image = 2 * image + 127
+      image = np.rint(image)
+      image = np.clip(image, 0, 255).astype(np.uint8)
+
+      self.scipy_smooth.append(image)
+      cv2.imwrite(f'scipy smooth {i}.jpg', image)
+    return self.scipy_smooth
 
   #def box_filter(self, num_repetitions):
   #  # Define box filter
@@ -175,10 +207,10 @@ if __name__ == "__main__":
     horizontal_derivative = ass.gaussian_derivative_horizontal()
 
     # # Task 5 Gradient magnitude.
-    # Gradient_magnitude = ass.gradient_magnitute()
+    Gradient_magnitude = ass.gradient_magnitute()
 
     # # Task 6 Built-in convolution
-    # scipy_convolve = ass.scipy_convolve()
+    scipy_convolve = ass.scipy_convolve()
 
     # # Task 7 Repeated box filtering
     # box_filter = ass.box_filter(5)
