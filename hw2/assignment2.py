@@ -39,9 +39,8 @@ class ComputerVisionAssignment():
     cv2.imwrite('floodfille.jpg', output_image)
     return output_image
 
-  def gussian_operation(self, img):
+  def gussian_operation(self, img, kernel_x, kernel_y, is_negative=False):
     h, w = img.shape
-    kernel = [0.25, 0.5, 0.25]
 
     grid = np.zeros((h, w), dtype=np.float32)
 
@@ -51,7 +50,7 @@ class ComputerVisionAssignment():
             mid = img[y, x]
             right = img[y, x + 1] if x + 1 < w else 0
 
-            grid[y, x] = np.dot([left, mid, right], kernel)
+            grid[y, x] = np.dot([left, mid, right], kernel_x)
 
     result = np.zeros((h, w), dtype=np.uint8)
 
@@ -61,7 +60,10 @@ class ComputerVisionAssignment():
             mid = grid[y, x]
             down = grid[y + 1, x] if y + 1 < h else 0
 
-            val = np.dot([up, mid, down], kernel) 
+            val = np.dot([up, mid, down], kernel_y) 
+
+            if is_negative:
+                val = 2 * val + 127
             val = int(round(val))
 
             result[y, x] = np.clip(val, 0, 255)
@@ -76,9 +78,10 @@ class ComputerVisionAssignment():
     image = self.cat_eye
         
     self.blurred_images = []
+    gussian_kernel = [0.25, 0.5, 0.25]
     for i in range(5):
         # Apply convolution
-        image = self.gussian_operation(image)
+        image = self.gussian_operation(image, gussian_kernel, gussian_kernel)
         
         # Store the blurred image
         self.blurred_images.append(image)
@@ -86,33 +89,43 @@ class ComputerVisionAssignment():
         cv2.imwrite(f'gaussain blur {i}.jpg', image)
     return self.blurred_images
 
-  #def gaussian_derivative_vertical(self):
-  #  # Define kernels
-    
-  #  # Store images
-  #  self.vDerive_images = []
-  #  for i in range(5):
-  #    # Apply horizontal and vertical convolution
-  #    # image =
+  def gaussian_derivative_vertical(self):
+    # Define kernels
+    gussian_kernel = [0.25, 0.5, 0.25]
+    soblel_kernel = [-0.5, 0, 0.5] # flipped sober kernel for vertical derivative
+
+    # Store images
+    self.vDerive_images = []
+    for i in range(5):
+      # Apply horizontal and vertical convolution
+      image = cv2.imread(f'gaussain blur {i}.jpg', cv2.IMREAD_GRAYSCALE)
+
+      image = self.gussian_operation(image, gussian_kernel, soblel_kernel, is_negative=True)
       
-  #    # self.vDerive_images.append(image)
-  #    #cv2.imwrite(f'vertical {i}.jpg', image)
-  #  return self.vDerive_images
+      self.vDerive_images.append(image)
+      cv2.imwrite(f'vertical {i}.jpg', image)
 
-  #def gaussian_derivative_horizontal(self):
-  #  #Define kernels
+    return self.vDerive_images
 
-  #  # Store images after computing horizontal derivative
-  #  self.hDerive_images = []
+  def gaussian_derivative_horizontal(self):
+    #Define kernels
+    gussian_kernel = [0.25, 0.5, 0.25]
+    soblel_kernel = [-0.5, 0, 0.5] # flipped sober kernel for horizontal derivative
 
-  #  for i in range(5):
+    # Store images after computing horizontal derivative
+    self.hDerive_images = []
 
-  #    # Apply horizontal and vertical convolution
-  #    # image =
+    for i in range(5):
 
-  #    self.hDerive_images.append(image)
-  #    #cv2.imwrite(f'horizontal {i}.jpg', image)
-  #  return self.hDerive_images
+      # Apply horizontal and vertical convolution
+      image = cv2.imread(f'gaussain blur {i}.jpg', cv2.IMREAD_GRAYSCALE)
+
+      image = self.gussian_operation(image, soblel_kernel, gussian_kernel, is_negative=True)
+
+      self.hDerive_images.append(image)
+      cv2.imwrite(f'horizontal {i}.jpg', image)
+
+    return self.hDerive_images
 
   #def gradient_magnitute(self):
   #  # Store the computed gradient magnitute
@@ -156,10 +169,10 @@ if __name__ == "__main__":
     blurred_imgs = ass.gaussian_blur()
 
     # # Task 3 Convolution for differentiation along the vertical direction
-    # # vertical_derivative = ass.gaussian_derivative_vertical()
+    vertical_derivative = ass.gaussian_derivative_vertical()
 
     # # Task 4 Differentiation along another direction along the horizontal direction
-    # horizontal_derivative = ass.gaussian_derivative_horizontal()
+    horizontal_derivative = ass.gaussian_derivative_horizontal()
 
     # # Task 5 Gradient magnitude.
     # Gradient_magnitude = ass.gradient_magnitute()
