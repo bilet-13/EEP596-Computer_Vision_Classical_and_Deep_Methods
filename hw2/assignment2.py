@@ -208,6 +208,7 @@ class ComputerVisionAssignment():
             convolution_result[j] += out[idx] * box_filter[k] 
 
       out = convolution_result
+
     return out
 
 if __name__ == "__main__":
