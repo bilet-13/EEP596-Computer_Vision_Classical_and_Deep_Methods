@@ -26,35 +26,65 @@ class ComputerVisionAssignment():
     while stack:
         x, y = stack.pop()
 
-        output_image[x][y] = fill_color
+        output_image[y][x] = fill_color
 
         for dx, dy in direction:
             nx = x + dx
             ny = y + dy
 
-            if nx >= 0 and nx < w and ny >= 0 and ny < h and gray_img[nx][ny] == 255:
-                gray_img[nx][ny] = 0
+            if nx >= 0 and nx < w and ny >= 0 and ny < h and gray_img[ny][nx] == 255:
+                gray_img[ny][nx] = 0
                 stack.append((nx, ny))
 
     cv2.imwrite('floodfille.jpg', output_image)
     return output_image
 
-  #def gaussian_blur(self):
-  #  """
-  #  Apply Gaussian blur to the image iteratively.
-  #  """
-  #  # kernel = # 1D Gaussian kernel
-  #  image = self.cat_eye
-  #  self.blurred_images = []
-  #  for i in range(5):
-  #      # Apply convolution
-  #      # image=
+  def gussian_operation(self, img):
+    h, w = img.shape
+    kernel = [0.25, 0.5, 0.25]
+
+    grid = np.zeros((h, w), dtype=np.float32)
+
+    for y in range(h):
+        for x in range(w):
+            left = img[y, x - 1] if x - 1 >= 0 else 0
+            mid = img[y, x]
+            right = img[y, x + 1] if x + 1 < w else 0
+
+            grid[y, x] = np.dot([left, mid, right], kernel)
+
+    result = np.zeros((h, w), dtype=np.uint8)
+
+    for y in range(h):
+        for x in range(w):
+            up = grid[y - 1, x] if y - 1 >= 0 else 0
+            mid = grid[y, x]
+            down = grid[y + 1, x] if y + 1 < h else 0
+
+            val = np.dot([up, mid, down], kernel) 
+            val = int(round(val))
+
+            result[y, x] = np.clip(val, 0, 255)
+
+    return result 
+
+  def gaussian_blur(self):
+    """
+    Apply Gaussian blur to the image iteratively.
+    """
+    # kernel = # 1D Gaussian kernel
+    image = self.cat_eye
         
-  #      # Store the blurred image
-  #      self.blurred_images.append(image)
+    self.blurred_images = []
+    for i in range(5):
+        # Apply convolution
+        image = self.gussian_operation(image)
         
-  #      #cv2.imwrite(f'gaussain blur {i}.jpg', image)
-  #  return self.blurred_images
+        # Store the blurred image
+        self.blurred_images.append(image)
+        
+        cv2.imwrite(f'gaussain blur {i}.jpg', image)
+    return self.blurred_images
 
   #def gaussian_derivative_vertical(self):
   #  # Define kernels
@@ -123,7 +153,7 @@ if __name__ == "__main__":
     floodfill_img = ass.floodfill((168, 155))
 
     # Task 2 Convolution for Gaussian smoothing.
-    # blurred_imgs = ass.gaussian_blur()
+    blurred_imgs = ass.gaussian_blur()
 
     # # Task 3 Convolution for differentiation along the vertical direction
     # # vertical_derivative = ass.gaussian_derivative_vertical()
