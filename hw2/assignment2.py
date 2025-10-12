@@ -125,7 +125,6 @@ class ComputerVisionAssignment():
 
       image = self.gussian_operation(image, soblel_kernel, gussian_kernel)
       
-      print(image.dtype)
       image = 2 * image + 127
       image = np.rint(image)
       image = np.clip(image, 0, 255).astype(np.uint8)
@@ -192,16 +191,24 @@ class ComputerVisionAssignment():
 
     return self.scipy_smooth
 
-  #def box_filter(self, num_repetitions):
-  #  # Define box filter
-  #  box_filter = [1, 1, 1]
-  #  out = [1, 1, 1]
+  def box_filter(self, num_repetitions):
+    # Define box filter
+    box_filter = [1, 1, 1]
+    out = [1, 1, 1]
 
-  #  for _ in range(num_repetitions):
-  #    # Perform 1D conlve
-  #    out =
+    for _ in range(num_repetitions):
+      # Perform 1D conlve
+      convolution_result = np.zeros(len(out) + len(box_filter) - 1, dtype=np.float32)
 
-  #  return out
+      for j in range(len(convolution_result)):
+        for k in range(len(box_filter)):
+          idx = j + k + 1 - len(box_filter)
+
+          if idx >= 0 and idx < len(out):
+            convolution_result[j] += out[idx] * box_filter[k] 
+
+      out = convolution_result
+    return out
 
 if __name__ == "__main__":
     ass = ComputerVisionAssignment()
@@ -224,4 +231,4 @@ if __name__ == "__main__":
     scipy_convolve = ass.scipy_convolve()
 
     # # Task 7 Repeated box filtering
-    # box_filter = ass.box_filter(5)
+    box_filter = ass.box_filter(5)
