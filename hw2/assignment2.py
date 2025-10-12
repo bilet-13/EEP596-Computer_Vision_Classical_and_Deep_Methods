@@ -13,13 +13,14 @@ class ComputerVisionAssignment():
     self.cat_eye = cv2.imread('cat_eye.jpg', cv2.IMREAD_GRAYSCALE)
 
   def floodfill(self, seed = (0, 0)):
-    # Define the fill color (e.g., bright green)
     fill_color = (0, 0, 255)   # (B, G, R)
-    # Create a copy of the input image to keep the original image unchanged
+
     gray_img = cv2.cvtColor(self.ant_img, cv2.COLOR_BGR2GRAY)
     output_image = self.ant_img.copy()
+
     h, w = gray_img.shape 
     stack = [seed]
+
     direction = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 
     while stack:
@@ -31,12 +32,10 @@ class ComputerVisionAssignment():
             nx = x + dx
             ny = y + dy
 
-            if nx >= 0 and nx < w and ny >= 0 and ny < h:
-                print(gray_img[nx][ny])
-                if gray_img[nx][ny] == 255:
-                    gray_img[nx][ny] = 0
-                    stack.append((nx, ny))
-    print(  "Flood fill completed.")
+            if nx >= 0 and nx < w and ny >= 0 and ny < h and gray_img[nx][ny] == 255:
+                gray_img[nx][ny] = 0
+                stack.append((nx, ny))
+
     cv2.imwrite('floodfille.jpg', output_image)
     return output_image
 
