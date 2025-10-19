@@ -24,7 +24,7 @@ class Assignment3:
 
         bright_img = torch_img + 100.0 
         # bright_img = torch.clamp(bright_img, 0.0, 255.0)
-        print("Brightened Image Type:", bright_img.dtype)
+        # print("Brightened Image Type:", bright_img.dtype)
 
         # rgb_img = bright_img.numpy().astype(np.uint8)
         # rgb_img = cv.cvtColor(rgb_img, cv.COLOR_RGB2BGR)
@@ -51,48 +51,40 @@ class Assignment3:
         noisy_img = torch.clamp(noisy_img, 0.0, 255.0)
         noisy_img = noisy_img / 255.0
 
-        # cv_img = (noisy_img.numpy() * 255).astype(np.uint8)
-        # cv_img = cv.cvtColor(cv_img, cv.COLOR_RGB2BGR)
-        # cv.imwrite("noisy_image.png", cv_img)
-
         return noisy_img
 
     def normalization_image(self, img):
         rgb_img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-        img = rgb_img.astype(np.float32)
+        img = rgb_img.astype(np.float64)
 
-        print("image type:", img.dtype)
-        mean = img.mean(axis=(0, 1), dtype=float)
-        std = img.std(axis=(0, 1), dtype=float)
-
-        print("Mean:", mean)
-        print("Standard Deviation:", std)
+        mean = img.mean(axis=(0, 1), dtype=np.float64)
+        # print("mean shape:", mean.shape)
+        std = img.std(axis=(0, 1), dtype=np.float64)
 
         image_norm = (img - mean) / std
-        print("image type:", image_norm.dtype)
 
-        image_norm = torch.from_numpy(image_norm).float()
-
-        # image_norm = np.clip(image_norm, 0, 255).astype(np.uint8)
-        # image_norm_mean = image_norm.mean(axis=(0, 1), dtype=float)
-        # image_norm_std = image_norm.std(axis=(0, 1), dtype=float)
-        # print("Mean:", image_norm_mean)
-        # print("Standard Deviation:", image_norm_std)
-
-        print("image type:", image_norm.dtype)
+        image_norm = torch.from_numpy(image_norm).double()
 
         return image_norm
 
     def Imagenet_norm(self, img):
-        rgb_img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+       # 1. Convert OpenCV BGR → RGB
+        print("Original image shape:", img.shape)
+        rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)   
 
-        imagenet_mean = np.array([0.485, 0.456, 0.406])
-        imagenet_std = np.array([0.229, 0.224, 0.225])
+        # 2. Convert to torch float32 tensor and scale to [0,255]
+        x = torch.from_numpy(rgb).to(torch.float64)    
 
-        ImageNet_norm = (rgb_img / 255.0 - imagenet_mean) / imagenet_std
+        x = x.permute(2, 0, 1).contiguous()
+
+        mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float64).view(3, 1, 1) * 255.0
+        std  = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float64).view(3, 1, 1) * 255.0
+
+        ImageNet_norm = (x - mean) / std 
+        ImageNet_norm = ImageNet_norm.permute(1, 2, 0).contiguous()
+        print("ImageNet_norm shape:", ImageNet_norm.shape)
 
         return ImageNet_norm
-
     def dimension_rearrange(self, img):
         rgb_img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         tensor_img = torch.from_numpy(rgb_img).float()
@@ -102,13 +94,28 @@ class Assignment3:
 
         return rearrange
 
-    def chain_rule(self, x, y, z):
+    def stride(self, img):
+        torch_img = torch.from_numpy(img).unsqueeze(0).unsqueeze(0)  
+        torch_img = torch_img.to(torch.float32)
 
-        return df_dx, df_dy, df_dz, df_dq
+        scharr_x = np.array([[-3, 0, 3],
+                             [-10, 0, 10],
+                            [-3, 0, 3]], dtype=np.float32)
+        kernel = torch.from_numpy(scharr_x).flip(0, 1).unsqueeze(0).unsqueeze(0)  
 
-    def relu(self, x, w):
+        torch_image = torch.nn.functional.conv2d(torch_img, kernel, stride=2, padding=1)
+        torch_image = torch_image.squeeze(0).squeeze(0)
 
-        return dx, dw
+        return torch_image
+        
+
+    # def chain_rule(self, x, y, z):
+
+    #     return df_dx, df_dy, df_dz, df_dq
+
+    # def relu(self, x, w):
+
+    #     return dx, dw
 
 
 if __name__ == "__main__":
@@ -121,5 +128,7 @@ if __name__ == "__main__":
     image_norm = assign.normalization_image(img)
     ImageNet_norm = assign.Imagenet_norm(img)
     rearrange = assign.dimension_rearrange(img)
-    df_dx, df_dy, df_dz, df_dq = assign.chain_rule(x=-2.0, y=5.0, z=-4.0)
-    dx, dw = assign.relu(x=[-1.0, 2.0], w=[2.0, -3.0, -3.0])
+    gray_img = cv.imread("cat_eye.jpg", cv.IMREAD_GRAYSCALE)
+    stride_img = assign.stride(gray_img)
+    # df_dx, df_dy, df_dz, df_dq = assign.chain_rule(x=-2.0, y=5.0, z=-4.0)
+    # dx, dw = assign.relu(x=[-1.0, 2.0], w=[2.0, -3.0, -3.0])
