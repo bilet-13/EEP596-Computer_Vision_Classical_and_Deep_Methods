@@ -21,12 +21,14 @@ class Assignment3:
         return torch_img
 
     def brighten(self, torch_img):
-        bright_img = torch_img + 100.0 
-        bright_img = torch.clamp(bright_img, 0.0, 255.0)
 
-        rgb_img = bright_img.numpy().astype(np.uint8)
-        rgb_img = cv.cvtColor(rgb_img, cv.COLOR_RGB2BGR)
-        cv.imwrite("brightened_image.png", rgb_img)
+        bright_img = torch_img + 100.0 
+        # bright_img = torch.clamp(bright_img, 0.0, 255.0)
+        print("Brightened Image Type:", bright_img.dtype)
+
+        # rgb_img = bright_img.numpy().astype(np.uint8)
+        # rgb_img = cv.cvtColor(rgb_img, cv.COLOR_RGB2BGR)
+        # cv.imwrite("brightened_image.png", rgb_img)
 
         return bright_img
 
@@ -37,9 +39,9 @@ class Assignment3:
         saturated_img = tensor_img + 100
         saturated_img = torch.clamp(bright_img, 0, 255)
 
-        cv_img = saturated_img.numpy().astype(np.uint8)
-        cv_img = cv.cvtColor(cv_img, cv.COLOR_RGB2BGR)
-        cv.imwrite("saturated_image.png", cv_img)
+        # cv_img = saturated_img.numpy().astype(np.uint8)
+        # cv_img = cv.cvtColor(cv_img, cv.COLOR_RGB2BGR)
+        # cv.imwrite("saturated_image.png", cv_img)
 
         return saturated_img
 
@@ -56,14 +58,47 @@ class Assignment3:
         return noisy_img
 
     def normalization_image(self, img):
+        rgb_img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+        img = rgb_img.astype(np.float32)
+
+        print("image type:", img.dtype)
+        mean = img.mean(axis=(0, 1), dtype=float)
+        std = img.std(axis=(0, 1), dtype=float)
+
+        print("Mean:", mean)
+        print("Standard Deviation:", std)
+
+        image_norm = (img - mean) / std
+        print("image type:", image_norm.dtype)
+
+        image_norm = torch.from_numpy(image_norm).float()
+
+        # image_norm = np.clip(image_norm, 0, 255).astype(np.uint8)
+        # image_norm_mean = image_norm.mean(axis=(0, 1), dtype=float)
+        # image_norm_std = image_norm.std(axis=(0, 1), dtype=float)
+        # print("Mean:", image_norm_mean)
+        # print("Standard Deviation:", image_norm_std)
+
+        print("image type:", image_norm.dtype)
 
         return image_norm
 
     def Imagenet_norm(self, img):
+        rgb_img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+
+        imagenet_mean = np.array([0.485, 0.456, 0.406])
+        imagenet_std = np.array([0.229, 0.224, 0.225])
+
+        ImageNet_norm = (rgb_img / 255.0 - imagenet_mean) / imagenet_std
 
         return ImageNet_norm
 
     def dimension_rearrange(self, img):
+        rgb_img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+        tensor_img = torch.from_numpy(rgb_img).float()
+
+        rearrange = tensor_img.permute(2, 0, 1)
+        rearrange = rearrange.unsqueeze(0)
 
         return rearrange
 
