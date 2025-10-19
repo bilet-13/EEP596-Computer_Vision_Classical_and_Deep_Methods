@@ -44,6 +44,14 @@ class Assignment3:
         return saturated_img
 
     def add_noise(self, torch_img):
+        noise = np.random.normal(0, 100, torch_img.shape).astype(np.float32)    
+        noisy_img = torch_img + torch.from_numpy(noise)
+        noisy_img = torch.clamp(noisy_img, 0.0, 255.0)
+        noisy_img = noisy_img / 255.0
+
+        # cv_img = (noisy_img.numpy() * 255).astype(np.uint8)
+        # cv_img = cv.cvtColor(cv_img, cv.COLOR_RGB2BGR)
+        # cv.imwrite("noisy_image.png", cv_img)
 
         return noisy_img
 
