@@ -24,7 +24,8 @@ class Assignment3:
         rgb_img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         tensor_img = torch.from_numpy(rgb_img).to(torch.uint8)
 
-        saturated_img = torch.clamp(tensor_img.to(torch.int16) + 100, 0, 255).to(torch.uint8)
+        tensor_img = tensor_img + 100
+        saturated_img = torch.clamp(tensor_img, 0, 255).to(torch.uint8)
 
         return saturated_img
 
