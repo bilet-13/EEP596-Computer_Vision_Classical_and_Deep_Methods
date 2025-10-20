@@ -11,12 +11,8 @@ class Assignment3:
         pass
 
     def torch_image_conversion(self, torch_img):
-        # print("Original Image Shape:", torch_img.shape)
-        # print("Original Image Data Type:", torch_img.dtype)
         img_rgb = cv.cvtColor(torch_img, cv.COLOR_BGR2RGB)
         torch_img = torch.from_numpy(img_rgb).float()
-        # print("Converted Image Shape:", torch_img.shape)
-        # print("Converted Image Data Type:", torch_img.dtype)
 
         return torch_img
 
@@ -30,10 +26,6 @@ class Assignment3:
 
         saturated_img = tensor_img + 100
         saturated_img = torch.clamp(saturated_img, 0, 255)
-
-        # cv_img = saturated_img.numpy().astype(np.uint8)
-        # cv_img = cv.cvtColor(cv_img, cv.COLOR_RGB2BGR)
-        # cv.imwrite("saturated_image.png", cv_img)
 
         return saturated_img
 
@@ -50,7 +42,6 @@ class Assignment3:
         img = rgb_img.astype(np.float64)
 
         mean = img.mean(axis=(0, 1), dtype=np.float64)
-        # print("mean shape:", mean.shape)
         std = img.std(axis=(0, 1), dtype=np.float64)
 
         image_norm = (img - mean) / std
@@ -60,23 +51,22 @@ class Assignment3:
         return image_norm
 
     def Imagenet_norm(self, img):
-       # 1. Convert OpenCV BGR → RGB
-        print("Original image shape:", img.shape)
         rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)   
 
-        # 2. Convert to torch float32 tensor and scale to [0,255]
-        x = torch.from_numpy(rgb).to(torch.float64)    
+        torch_img = torch.from_numpy(rgb).to(torch.float64) / 255.0
+        torch_img = torch_img.clamp(0.0, 1.0)
 
-        x = x.permute(2, 0, 1).contiguous()
+        # x = x.permute(2, 0, 1).contiguous()
 
-        mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float64).view(3, 1, 1) * 255.0
-        std  = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float64).view(3, 1, 1) * 255.0
+        mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float64) 
+        std  = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float64)
 
-        ImageNet_norm = (x - mean) / std 
-        ImageNet_norm = ImageNet_norm.permute(1, 2, 0).contiguous()
-        print("ImageNet_norm shape:", ImageNet_norm.shape)
+        ImageNet_norm = (torch_img - mean) / std 
+        ImageNet_norm = ImageNet_norm.clamp(0, 1.0)
+        # ImageNet_norm = ImageNet_norm.permute(1, 2, 0).contiguous()
 
         return ImageNet_norm
+
     def dimension_rearrange(self, img):
         rgb_img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         tensor_img = torch.from_numpy(rgb_img).float()
