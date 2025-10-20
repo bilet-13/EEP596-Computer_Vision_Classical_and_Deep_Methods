@@ -26,10 +26,6 @@ class Assignment3:
 
         saturated_img = torch.clamp(tensor_img.to(torch.int16) + 100, 0, 255).to(torch.uint8)
 
-        # write_img = saturated_img.numpy().astype(np.uint8)
-        # write_img = cv.cvtColor(write_img, cv.COLOR_RGB2BGR)
-        # cv.imwrite("saturated_image.png", write_img)
-
         return saturated_img
 
     def add_noise(self, torch_img):
@@ -59,14 +55,11 @@ class Assignment3:
         torch_img = torch.from_numpy(rgb).to(torch.float64) / 255.0
         torch_img = torch_img.clamp(0.0, 1.0)
 
-        # x = x.permute(2, 0, 1).contiguous()
-
         mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float64) 
         std  = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float64)
 
         ImageNet_norm = (torch_img - mean) / std 
         ImageNet_norm = ImageNet_norm.clamp(0, 1.0)
-        # ImageNet_norm = ImageNet_norm.permute(1, 2, 0).contiguous()
 
         return ImageNet_norm
 
