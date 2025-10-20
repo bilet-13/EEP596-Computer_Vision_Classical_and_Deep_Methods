@@ -21,15 +21,7 @@ class Assignment3:
         return torch_img
 
     def brighten(self, torch_img):
-
         bright_img = torch_img + 100.0 
-        # bright_img = torch.clamp(bright_img, 0.0, 255.0)
-        # print("Brightened Image Type:", bright_img.dtype)
-
-        # rgb_img = bright_img.numpy().astype(np.uint8)
-        # rgb_img = cv.cvtColor(rgb_img, cv.COLOR_RGB2BGR)
-        # cv.imwrite("brightened_image.png", rgb_img)
-
         return bright_img
 
     def saturation_arithmetic(self, img):
@@ -37,7 +29,7 @@ class Assignment3:
         tensor_img = torch.from_numpy(rgb_img).to(torch.uint8)
 
         saturated_img = tensor_img + 100
-        saturated_img = torch.clamp(bright_img, 0, 255)
+        saturated_img = torch.clamp(saturated_img, 0, 255)
 
         # cv_img = saturated_img.numpy().astype(np.uint8)
         # cv_img = cv.cvtColor(cv_img, cv.COLOR_RGB2BGR)
