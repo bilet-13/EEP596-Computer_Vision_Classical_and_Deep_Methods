@@ -86,7 +86,6 @@ def train_classifier():
     # Creates Network 
     net = Net()
 
-
     # Defines loss function and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
@@ -115,33 +114,54 @@ def train_classifier():
     PATH = './cifar_net_2epoch.pth'
     torch.save(net.state_dict(), PATH)
 
-# def evalNetwork():
-#     # Initialized the network and load from the saved weights
-#     PATH = './cifar_net_2epoch.pth'
-#     net = Net()
-#     net.load_state_dict(torch.load(PATH))
-#     # Loads dataset
-#     batch_size=4
-#     transform = 
-#     testset = 
-#     testloader =
-#     correct = 0
-#     total = 0
-#     # since we're not training, we don't need to calculate the gradients for our outputs
-#     with torch.no_grad():
-#         for data in testloader:
-#             # Evaluates samples
+def evalNetwork():
+    # Initialized the network and load from the saved weights
+    PATH = './cifar_net_2epoch.pth'
+    net = Net()
+    net.load_state_dict(torch.load(PATH))
+    # Loads dataset
+    batch_size=4
+    transform = transforms.Compose(
+        [transforms.ToTensor(),
+         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+    testset = torchvision.datasets.CIFAR10(root='./cifar10', train=False,
+                                           download=False, transform=transform)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
+                                             shuffle=False, num_workers=2)
+    correct = 0
+    total = 0
+    # since we're not training, we don't need to calculate the gradients for our outputs
+    with torch.no_grad():
+        for data in testloader:
+            # Evaluates samples
+            images, labels = data
+            # calculate outputs by running images through the network
+            outputs = net(images)
+            # the class with the highest energy is what we choose as prediction
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    print(f'Accuracy of the network on the 10000 test images: {100 * correct / total} %')
+    return 100.0 * correct / total
 
 def get_first_layer_weights():
+    PATH = './cifar_net_2epoch.pth'
+
     net = Net()
+    net.load_state_dict(torch.load(PATH))
     # TODO: load the trained weights
-    first_weight = None  # TODO: get conv1 weights (exclude bias)
+    first_weight = net.conv1.weight  # TODO: get conv1 weights (exclude bias)
     return first_weight
 
 def get_second_layer_weights():
+    PATH = './cifar_net_2epoch.pth'
+
     net = Net()
+    net.load_state_dict(torch.load(PATH))
     # TODO: load the trained weights
-    second_weight = None  # TODO: get conv2 weights (exclude bias)
+    second_weight = net.conv2.weight  # TODO: get conv2 weights (exclude bias)
     return second_weight
 
 def hyperparameter_sweep():
@@ -155,5 +175,6 @@ def hyperparameter_sweep():
     return None
 
 if __name__ == "__main__":
-    train_classifier()
+    weight1 = get_first_layer_weights()
+    weight2 = get_second_layer_weights()
     # images, labels = CIFAR10_dataset_a()
