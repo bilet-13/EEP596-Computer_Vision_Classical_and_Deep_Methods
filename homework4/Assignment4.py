@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
+import random
 
 
 def CIFAR10_dataset_a():
@@ -164,17 +165,125 @@ def get_second_layer_weights():
     second_weight = net.conv2.weight  # TODO: get conv2 weights (exclude bias)
     return second_weight
 
-def hyperparameter_sweep():
-    '''
-    Reuse the CNN and training code from Question 2
-    Train the network three times using different learning rates: 0.01, 0.001, and 0.0001
-    During training, record the training loss every 2000 iterations
-    compute and record the training and test errors every 2000 iterations by randomly sampling 1000 images from each dataset
-    After training, plot three curves
-    '''
-    return None
+def evaluate_on_subset(model, dataset, batch_size, num_workers, n):
+    """Evaluate model on a random subset of size n (no replacement). Returns (avg_loss, error_pct)."""
+    model.eval()
+    n = min(n, len(dataset))
+    sampler = torch.utils.data.RandomSampler(dataset, replacement=False, num_samples=n)
+    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, sampler=sampler, num_workers=num_workers)
 
+    criterion = nn.CrossEntropyLoss()
+    total = 0
+    correct = 0
+    running_loss = 0.0
+
+    with torch.no_grad():
+        for images, labels in loader:
+            images = images
+            labels = labels
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            running_loss += loss.item() * labels.size(0)   # sum over samples
+            _, predicted = outputs.max(1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    avg_loss = running_loss / total
+    error_pct = 100.0 * (1.0 - correct / total)
+    return avg_loss, error_pct
+
+def hyperparameter_sweep():
+    """
+    Train with learning rates: 0.01, 0.001, 0.0001
+    Every 2000 minibatches: record training loss, and compute train/test errors by sampling 1000 images from each dataset.
+    Plot curves at the end.
+    """
+    # Dataset / loaders
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    ])
+    batch_size = 4
+    num_workers = 2
+
+    trainset = torchvision.datasets.CIFAR10(root="./cifar10", train=True, download=False, transform=transform)
+    testset  = torchvision.datasets.CIFAR10(root="./cifar10", train=False, download=False, transform=transform)
+
+    # shuffle=True only for true training epochs; the DataLoader here is for iteration
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True,  num_workers=num_workers)
+
+    learning_rates = [0.01, 0.001, 0.0001]
+    training_losses = {lr: [] for lr in learning_rates}  # averaged over each 2000-step block
+    train_errors    = {lr: [] for lr in learning_rates}  # %
+    test_errors     = {lr: [] for lr in learning_rates}  # %
+
+    # ----- sweep -----
+    for lr in learning_rates:
+        net = Net()
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.SGD(net.parameters(), lr=lr, momentum=0.9)
+
+        net.train()
+        for epoch in range(2):  # 2 epochs as you had
+            running_loss = 0.0
+            for i, (inputs, labels) in enumerate(trainloader, 0):
+                inputs = inputs
+                labels = labels
+
+                optimizer.zero_grad()
+                outputs = net(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+
+                running_loss += loss.item()
+
+                # every 2000 mini-batches
+                if i % 2000 == 1999:
+                    avg_train_loss_block = running_loss / 2000.0
+                    training_losses[lr].append(avg_train_loss_block)
+                    print(f"LR={lr} [epoch {epoch+1}, iter {i+1}] block train loss: {avg_train_loss_block:.4f}")
+                    running_loss = 0.0
+
+                    # evaluate on random 1k from train & test
+                    train_loss_1k, train_err_1k = evaluate_on_subset(
+                        net, trainset, batch_size, num_workers, n=1000)
+                    test_loss_1k,  test_err_1k  = evaluate_on_subset(
+                        net, testset,  batch_size, num_workers, n=1000  )
+
+                    train_errors[lr].append(train_err_1k)
+                    test_errors[lr].append(test_err_1k)
+
+                    # keep training mode for next iterations
+                    net.train()
+
+    # ----- plotting -----
+    # 1) Training loss per 2000-iter block
+    plt.figure()
+    for lr in learning_rates:
+        plt.plot(training_losses[lr], label=f"LR={lr} Train Loss")
+    plt.xlabel("Checkpoint (every 2000 iters)")
+    plt.ylabel("Loss")
+    plt.title("Training Loss")
+    plt.legend()
+    plt.savefig("training_losses.png", dpi=150)
+
+    # 2) Errors (train & test) per checkpoint
+    plt.figure()
+    for lr in learning_rates:
+        plt.plot(train_errors[lr], label=f"LR={lr} Train Error (%)", linestyle="--")
+        plt.plot(test_errors[lr],  label=f"LR={lr} Test Error (%)")
+    plt.xlabel("Checkpoint (every 2000 iters)")
+    plt.ylabel("Error (%)")
+    plt.title("Train/Test Error by LR (Random 1k subset)")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("train_test_errors.png", dpi=150)
+
+    plt.show()
+    return None
 if __name__ == "__main__":
-    weight1 = get_first_layer_weights()
-    weight2 = get_second_layer_weights()
+    # weight1 = get_first_layer_weights()
+    # weight2 = get_second_layer_weights()
     # images, labels = CIFAR10_dataset_a()
+    hyperparameter_sweep()
