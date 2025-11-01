@@ -65,6 +65,24 @@ def chain_rule_a():
     a=0.37, b=1.37, and c=0.73.  
     Calculate these numbers to 4 decimal digits and return in order of a, b, c
     """
+    w0 = 2.0
+    w1 = -3.0
+    w2 = -3.0
+
+    x0 = -1.0
+    x1 = -2.0
+
+    q = -(w0 * x0 + w1 * x1 + w2)
+    a = np.exp(q)
+    b = 1 + a
+    c = 1 / b
+
+    a = round(a, 4)
+    b = round(b, 4)
+    c = round(c, 4)
+
+    print(a, b, c)
+
     return a, b, c
 
 def chain_rule_b():
@@ -74,6 +92,24 @@ def chain_rule_b():
     Calculate these numbers to 4 decimal digits 
     and return in order of gradients for w0, x0, w1, x1, w2.
     """
+    w0 = torch.tensor(2.0, requires_grad=True)
+    w1 = torch.tensor(-3.0, requires_grad=True)
+    w2 = torch.tensor(-3.0, requires_grad=True)
+
+    x0 = torch.tensor(-1.0, requires_grad=True)
+    x1 = torch.tensor(-2.0, requires_grad=True)
+
+    y = 1 / (1 + torch.exp(-(w0 * x0 + w1 * x1 + w2)))
+    y.backward()
+
+    gw0 = round(w0.grad.item(), 4) if w0.grad is not None else 0.0
+    gw1 = round(w1.grad.item(), 4) if w1.grad is not None else 0.0
+    gw2 = round(w2.grad.item(), 4) if w2.grad is not None else 0.0
+    gx0 = round(x0.grad.item(), 4) if x0.grad is not None else 0.0
+    gx1 = round(x1.grad.item(), 4) if x1.grad is not None else 0.0
+    
+    print(gw0, gx0, gw1, gx1, gw2)
+
     return gw0, gx0, gw1, gx1, gw2
 
 def backprop_a():
@@ -136,4 +172,7 @@ def sgd(x0, y0, lr=0.001):
 
     return final_x, final_y
 
+if __name__ == "__main__":
+    chain_rule_a()
+    chain_rule_b()
 
