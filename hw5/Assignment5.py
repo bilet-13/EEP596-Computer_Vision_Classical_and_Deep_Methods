@@ -9,7 +9,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
 
-
 def chain_rule():
     """
     Compute df/dz, df/dq, df/dx, and df/dy for f(x,y,z)=xy+z,
@@ -77,9 +76,9 @@ def chain_rule_a():
     b = 1 + a
     c = 1 / b
 
-    a = round(a, 4)
-    b = round(b, 4)
-    c = round(c, 4)
+    a = float(round(a, 4))
+    b = float(round(b, 4))
+    c = float(round(c, 4))
 
     print(a, b, c)
 
@@ -110,7 +109,15 @@ def chain_rule_b():
     
     print(gw0, gx0, gw1, gx1, gw2)
 
-    return gw0, gx0, gw1, gx1, gw2
+    return torch.tensor([gw0, gx0, gw1, gx1, gw2])
+
+class tanhNN(nn.Module):
+    def __init__(self, w_int=(5.0, 2.0), b_init=-2.0):
+        super().__init__()
+        self.w = nn.Parameter(torch.tensor(list(w_int)))
+        self.b = nn.Parameter(torch.tensor(b_init))
+    def forward(self, x):
+        return torch.tanh(self.w @ x + self.b)
 
 def backprop_a():
     """
@@ -119,6 +126,10 @@ def backprop_a():
     the input vector is  x = [x0=-1,x1= 4],, and the bias is  w2  =-2.
     Use PyTorch to calculate the forward pass of the network, return y_hat = f(w,x).
     """
+    w = torch.tensor([5.0, 2.0, -2.-0], requires_grad=True)
+    x = torch.tensor([-1.0, 4.0], requires_grad=True)
+
+    y_hat = torch.tanh(w[0] * x[0] + w[1] * x[1] + w[2])
     return y_hat
 
 def backprop_b():
@@ -127,6 +138,17 @@ def backprop_b():
     for each of the weights, and return the gradient of them 
     in order of w0, w1, and w2.
     """
+    w = torch.tensor([5.0, 2.0, -2.-0], requires_grad=True)
+    x = torch.tensor([-1.0, 4.0], requires_grad=True)
+
+    y_hat = torch.tanh(w[0] * x[0] + w[1] * x[1] + w[2])
+    ground_truth = torch.tensor(1.0)
+    loss = (y_hat - ground_truth) ** 2
+    loss.backward()
+
+    gw0 = w.grad[0]
+    gw1 = w.grad[1]
+    gw2 = w.grad[2]
 
     return gw0, gw1, gw2
 
@@ -137,6 +159,22 @@ def backprop_c():
     For simplicity, just do one iteration. 
     And return the updated weights in the order of w0, w1, and w2 
     """
+    lr = torch.tensor(0.1)
+    w = torch.tensor([5.0, 2.0, -2.-0], requires_grad=True)
+    x = torch.tensor([-1.0, 4.0], requires_grad=True)
+
+    y_hat = torch.tanh(w[0] * x[0] + w[1] * x[1] + w[2])
+    ground_truth = torch.tensor(1.0)
+    loss = (y_hat - ground_truth) ** 2
+    loss.backward()
+
+    with torch.no_grad():
+        w -= lr * w.grad if w.grad is not None else 0.0
+
+    w0 = w[0]
+    w1 = w[1]
+    w2 = w[2]
+
     return  w0, w1, w2 
 
 
@@ -158,6 +196,71 @@ def newtonMethod(x0, y0):
     Insert your code here
     """
 
+    paraboloid = paraboloid.to(torch.float32).contiguous()   # 保證 float32 與連續記憶體
+    _, _, H, W = paraboloid.shape
+    device = paraboloid.device
+    dtype  = paraboloid.dtype
+
+    # 1) 建立一階與二階導數的卷積核（同 dtype/device）
+    kx1 = torch.tensor([[-0.5, 0.0, 0.5]], dtype=dtype, device=device).view(1,1,1,3)  # ∂/∂x
+    ky1 = torch.tensor([[-0.5], [0.0], [0.5]], dtype=dtype, device=device).view(1,1,3,1)  # ∂/∂y
+    kx2 = torch.tensor([[ 1.0, -2.0, 1.0 ]], dtype=dtype, device=device).view(1,1,1,3)     # ∂²/∂x²
+    ky2 = torch.tensor([[ 1.0], [-2.0], [1.0]], dtype=dtype, device=device).view(1,1,3,1)  # ∂²/∂y²
+
+    # 2) 用 conv2d 計算各導數影像（邊界用 replicate padding）
+    Ix  = F.conv2d(F.pad(paraboloid, (1,1,0,0), mode="replicate"), kx1)  # f_x
+    Iy  = F.conv2d(F.pad(paraboloid, (0,0,1,1), mode="replicate"), ky1)  # f_y
+    Ixx = F.conv2d(F.pad(paraboloid, (1,1,0,0), mode="replicate"), kx2)  # f_xx
+    Iyy = F.conv2d(F.pad(paraboloid, (0,0,1,1), mode="replicate"), ky2)  # f_yy
+    Ixy = F.conv2d(F.pad(Ix, (0,0,1,1), mode="replicate"), ky1)  # f_xy = ∂/∂y (f_x)
+
+    # 3) 初始點（題目允許任意起點；這裡用函式參數 x0, y0）
+    x = torch.as_tensor(float(x0), dtype=dtype, device=device)   # x: column
+    y = torch.as_tensor(float(y0), dtype=dtype, device=device)   # y: row
+
+    # 4) 牛頓法參數
+    max_iter = 50                          # 最多迭代次數
+    tol = 1e-6                             # 收斂判準（位置變化量）
+    damping = 1.0                          # 抑制係數（若震盪可改 0.5）
+    epsI = torch.eye(2, dtype=dtype, device=device) * 1e-9   # Hessian 正則化
+
+    for _ in range(max_iter):
+        # 1) 將 float 的 (x, y) 四捨五入成最近的整數像素
+        xi = torch.round(x).to(torch.long)
+        yi = torch.round(y).to(torch.long)
+
+        # 2) 夾住避免越界
+        xi = xi.clamp(0, W - 1)
+        yi = yi.clamp(0, H - 1)
+
+        # 3) 直接用索引從導數影像取樣（paraboloid 及導數張量是 (1,1,H,W)）
+        gx  = Ix[0, 0, yi, xi]
+        gy  = Iy[0, 0, yi, xi]
+        H11 = Ixx[0, 0, yi, xi]
+        H22 = Iyy[0, 0, yi, xi]
+        H12 = Ixy[0, 0, yi, xi]
+
+        # 4) 組 ∇f 與 Hessian
+        g = torch.stack([gx, gy])
+        Hmat = torch.stack([
+            torch.stack([H11, H12]),
+            torch.stack([H12, H22])
+        ]) + epsI
+
+        # 5) 解 H * delta = g，做牛頓更新（可加阻尼）
+        delta = torch.linalg.solve(Hmat, g)
+        x_new = x - damping * delta[0]
+        y_new = y - damping * delta[1]
+
+        # 6) 收斂判斷與更新
+        step = torch.hypot(x_new - x, y_new - y)
+        x, y = x_new, y_new
+        if step < tol:
+            break
+
+
+    final_x = x.item()
+    final_y = y.item()
     return final_x, final_y
 
 
@@ -173,6 +276,10 @@ def sgd(x0, y0, lr=0.001):
     return final_x, final_y
 
 if __name__ == "__main__":
-    chain_rule_a()
-    chain_rule_b()
+    backprop_a()
+    backprop_b()
+    backprop_c()
+    newtonMethod(128, 128)
+    # chain_rule_a()
+    # chain_rule_b()
 
