@@ -190,69 +190,59 @@ def constructParaboloid(w=256, h=256):
 def newtonMethod(x0, y0):
     paraboloid = torch.tensor([constructParaboloid()]).squeeze()
     paraboloid = torch.unsqueeze(paraboloid, 0) 
-    paraboloid = torch.unsqueeze(paraboloid, 0)    # -> (1,1,H,W) for conv2d
+    paraboloid = torch.unsqueeze(paraboloid, 0)   
 
     """
     Insert your code here
     """
 
-    paraboloid = paraboloid.to(torch.float32).contiguous()   # 保證 float32 與連續記憶體
+    paraboloid = paraboloid.to(torch.float32).contiguous()   
     _, _, H, W = paraboloid.shape
     device = paraboloid.device
     dtype  = paraboloid.dtype
 
-    # 1) 建立一階與二階導數的卷積核（同 dtype/device）
-    kx1 = torch.tensor([[-0.5, 0.0, 0.5]], dtype=dtype, device=device).view(1,1,1,3)  # ∂/∂x
-    ky1 = torch.tensor([[-0.5], [0.0], [0.5]], dtype=dtype, device=device).view(1,1,3,1)  # ∂/∂y
-    kx2 = torch.tensor([[ 1.0, -2.0, 1.0 ]], dtype=dtype, device=device).view(1,1,1,3)     # ∂²/∂x²
-    ky2 = torch.tensor([[ 1.0], [-2.0], [1.0]], dtype=dtype, device=device).view(1,1,3,1)  # ∂²/∂y²
+    kx1 = torch.tensor([[-0.5, 0.0, 0.5]], dtype=dtype, device=device).view(1,1,1,3)  
+    ky1 = torch.tensor([[-0.5], [0.0], [0.5]], dtype=dtype, device=device).view(1,1,3,1)  
+    kx2 = torch.tensor([[ 1.0, -2.0, 1.0 ]], dtype=dtype, device=device).view(1,1,1,3)    
+    ky2 = torch.tensor([[ 1.0], [-2.0], [1.0]], dtype=dtype, device=device).view(1,1,3,1) 
 
-    # 2) 用 conv2d 計算各導數影像（邊界用 replicate padding）
-    Ix  = F.conv2d(F.pad(paraboloid, (1,1,0,0), mode="replicate"), kx1)  # f_x
-    Iy  = F.conv2d(F.pad(paraboloid, (0,0,1,1), mode="replicate"), ky1)  # f_y
-    Ixx = F.conv2d(F.pad(paraboloid, (1,1,0,0), mode="replicate"), kx2)  # f_xx
-    Iyy = F.conv2d(F.pad(paraboloid, (0,0,1,1), mode="replicate"), ky2)  # f_yy
-    Ixy = F.conv2d(F.pad(Ix, (0,0,1,1), mode="replicate"), ky1)  # f_xy = ∂/∂y (f_x)
+    Ix  = F.conv2d(F.pad(paraboloid, (1,1,0,0), mode="replicate"), kx1)  
+    Iy  = F.conv2d(F.pad(paraboloid, (0,0,1,1), mode="replicate"), ky1)  
+    Ixx = F.conv2d(F.pad(paraboloid, (1,1,0,0), mode="replicate"), kx2)  
+    Iyy = F.conv2d(F.pad(paraboloid, (0,0,1,1), mode="replicate"), ky2)  
+    Ixy = F.conv2d(F.pad(Ix, (0,0,1,1), mode="replicate"), ky1)  
 
-    # 3) 初始點（題目允許任意起點；這裡用函式參數 x0, y0）
-    x = torch.as_tensor(float(x0), dtype=dtype, device=device)   # x: column
-    y = torch.as_tensor(float(y0), dtype=dtype, device=device)   # y: row
+    x = torch.as_tensor(float(x0), dtype=dtype, device=device)   
+    y = torch.as_tensor(float(y0), dtype=dtype, device=device)   
 
-    # 4) 牛頓法參數
-    max_iter = 50                          # 最多迭代次數
-    tol = 1e-6                             # 收斂判準（位置變化量）
-    damping = 1.0                          # 抑制係數（若震盪可改 0.5）
-    epsI = torch.eye(2, dtype=dtype, device=device) * 1e-9   # Hessian 正則化
+    max_iter = 50                      
+    tol = 1e-6                          
+    damping = 1.0                       
+    epsI = torch.eye(2, dtype=dtype, device=device) * 1e-9   
 
     for _ in range(max_iter):
-        # 1) 將 float 的 (x, y) 四捨五入成最近的整數像素
         xi = torch.round(x).to(torch.long)
         yi = torch.round(y).to(torch.long)
 
-        # 2) 夾住避免越界
         xi = xi.clamp(0, W - 1)
         yi = yi.clamp(0, H - 1)
 
-        # 3) 直接用索引從導數影像取樣（paraboloid 及導數張量是 (1,1,H,W)）
         gx  = Ix[0, 0, yi, xi]
         gy  = Iy[0, 0, yi, xi]
         H11 = Ixx[0, 0, yi, xi]
         H22 = Iyy[0, 0, yi, xi]
         H12 = Ixy[0, 0, yi, xi]
 
-        # 4) 組 ∇f 與 Hessian
         g = torch.stack([gx, gy])
         Hmat = torch.stack([
             torch.stack([H11, H12]),
             torch.stack([H12, H22])
         ]) + epsI
 
-        # 5) 解 H * delta = g，做牛頓更新（可加阻尼）
         delta = torch.linalg.solve(Hmat, g)
         x_new = x - damping * delta[0]
         y_new = y - damping * delta[1]
 
-        # 6) 收斂判斷與更新
         step = torch.hypot(x_new - x, y_new - y)
         x, y = x_new, y_new
         if step < tol:
@@ -272,7 +262,48 @@ def sgd(x0, y0, lr=0.001):
     """
     Insert your code here
     """
+    paraboloid = paraboloid.to(torch.float32).contiguous()  
+    _, _, H, W = paraboloid.shape
+    device = paraboloid.device
+    dtype  = paraboloid.dtype
 
+    kx1 = torch.tensor([[-0.5, 0.0, 0.5]], dtype=dtype, device=device).view(1,1,1,3)  
+    ky1 = torch.tensor([[-0.5],[0.0],[0.5]], dtype=dtype, device=device).view(1,1,3,1) 
+
+    Ix = F.conv2d(F.pad(paraboloid, (1,1,0,0), mode="replicate"), kx1)  
+    Iy = F.conv2d(F.pad(paraboloid, (0,0,1,1), mode="replicate"), ky1)  
+
+    lr = torch.tensor(lr, dtype=dtype, device=device)
+    tol = torch.tensor(1e-6, dtype=dtype, device=device)
+
+    x = torch.as_tensor(float(x0), dtype=dtype, device=device)
+    y = torch.as_tensor(float(y0), dtype=dtype, device=device)
+
+    max_iter = 5000
+    batch_sz = 1000
+    jitter_sd = 0.1    
+
+    for time in range(max_iter):
+        bx = (x + torch.randn(batch_sz, dtype=dtype, device=device) * jitter_sd).round().long().clamp(0, W-1)
+        by = (y + torch.randn(batch_sz, dtype=dtype, device=device) * jitter_sd).round().long().clamp(0, H-1)
+        gx = Ix[0,0,by, bx].mean()
+        gy = Iy[0,0,by, bx].mean()
+
+        x_new = x - lr * gx
+        y_new = y - lr * gy
+
+        step = torch.hypot(x_new - x, y_new - y)
+        x, y = x_new, y_new
+        if step < tol:
+            print("converged at iteration: ", time)
+            break
+
+        x = x.clamp(0.0, W - 1.0)
+        y = y.clamp(0.0, H - 1.0)
+
+   
+    final_x = x.item()
+    final_y = y.item()
     return final_x, final_y
 
 if __name__ == "__main__":
@@ -280,6 +311,7 @@ if __name__ == "__main__":
     backprop_b()
     backprop_c()
     newtonMethod(128, 128)
+    sgd(12, 12, lr=1)
     # chain_rule_a()
     # chain_rule_b()
 
