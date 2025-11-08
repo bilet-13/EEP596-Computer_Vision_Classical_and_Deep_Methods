@@ -62,12 +62,70 @@ class GAPNet(nn.Module):
     """
     Insert your code here
     """
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 6, kernel_size=(5, 5), stride=(1,1))
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
 
+        self.conv2 = nn.Conv2d(6, 10, kernel_size=(5,5), stride=(1,1))
+        self.global_avg_pool = nn.AvgPool2d(kernel_size=10, stride=10, padding=0)
+
+        self.fc1 = nn.Linear(10, 10, bias=True)
+
+    def forward(self, x):
+        # print("Input:", x.shape)
+        x = self.pool(F.relu(self.conv1(x)))
+        # print("After conv1 + pool:", x.shape)
+        x = self.conv2(F.relu(x))
+        # print("After conv2:", x.shape)
+        x = self.global_avg_pool(x)
+        # print("After GAP:", x.shape)
+        x = x.view(x.size(0), -1)
+        # print("After flatten:", x.shape)
+        x = self.fc1(x)
+        # print("After FC:", x.shape)
+        return x
 
 def train_GAPNet():
     """
     Insert your code here
     """
+    epochs = 10
+    lr = 0.001
+    momentum = 0.9
+    batch_size = 4
+    net = GAPNet()
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), lr=lr, momentum=momentum)
+
+    transform = transforms.Compose(
+        [transforms.ToTensor(),
+         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+    trainset = torchvision.datasets.CIFAR10(root='./cifar10', train=True,
+                                            download=True, transform=transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                              shuffle=True, num_workers=2)
+    for epoch in range(epochs):
+        running_loss = 0.0
+
+        for i, data in enumerate(trainloader, 0):
+            inputs, labels = data
+
+            optimizer.zero_grad()
+
+            outputs = net(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+            if i % 2000 == 1999:
+                print(f'[Epoch {epoch + 1}, Mini-batch {i + 1}] loss: {running_loss / 2000:.3f}')
+                running_loss = 0.0
+
+    torch.save(net.state_dict(), "Gap_net_10epochs.pth")
 
 
 def eval_GAPNet():
@@ -102,4 +160,5 @@ if __name__ == '__main__':
     # Q5
     ch_in=3
     n_classes=1000
+    train_GAPNet()
     # model = MobileNetV1(ch_in=ch_in, n_classes=n_classes)
