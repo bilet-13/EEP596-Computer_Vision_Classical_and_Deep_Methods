@@ -7,7 +7,9 @@ import torch.optim as optim
 
 import matplotlib.pyplot as plt
 import numpy as np
+from torchvision import models
 
+model_path = "./Gap_net_10epoch.pth"
 
 def compute_num_parameters(net:nn.Module):
     """compute the number of trainable parameters in *net* e.g., ResNet-34.  
@@ -122,22 +124,66 @@ def train_GAPNet():
 
             running_loss += loss.item()
             if i % 2000 == 1999:
-                print(f'[Epoch {epoch + 1}, Mini-batch {i + 1}] loss: {running_loss / 2000:.3f}')
+                # print(f'[Epoch {epoch + 1}, Mini-batch {i + 1}] loss: {running_loss / 2000:.3f}')
                 running_loss = 0.0
 
-    torch.save(net.state_dict(), "Gap_net_10epochs.pth")
+    torch.save(net.state_dict(), model_path)
 
 
 def eval_GAPNet():
     """
     Insert your code here
     """
+    net = GAPNet()
+    net.load_state_dict(torch.load(model_path))
 
-# def backbone():
-#     """
-#     Insert your code here, Q3
-#     """
-#     return features
+    batch_size=4
+    transform = transforms.Compose(
+        [transforms.ToTensor(),
+         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+    testset = torchvision.datasets.CIFAR10(root='./cifar10', train=False,
+                                           download=False, transform=transform)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
+                                             shuffle=False, num_workers=2)
+    correct = 0
+    total = 0
+
+    net.eval()
+    with torch.no_grad():
+        for data in testloader:
+            images, labels = data
+            outputs = net(images)
+
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    # print(f'Accuracy of the network on the 10000 test images: {100 * correct / total} %')
+
+def backbone():
+    """
+    Insert your code here, Q3
+    """
+    resnet18 = models.resnet18(pretrained=True)
+    # print("the structure of resnet18:\n", resnet18)
+    resnet18.fc = torch.nn.Identity()
+
+    img_path = "cat_eye.jpg"
+    img = torchvision.io.read_image(img_path)
+    img = img.float() / 255.0  # Normalize to [0, 1]
+
+    transform = transforms.Compose(
+        [ transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    img = transform(img)
+    img = img.unsqueeze(0)  # Add batch dimension
+
+    resnet18.eval()
+    with torch.no_grad():
+        features = resnet18(img)
+    # print("Extracted features shape:", features.shape)
+
+    return features
 
 def transfer_learning():
     """
@@ -154,11 +200,10 @@ class MobileNetV1(nn.Module):
     
 if __name__ == '__main__':
     #Q1
-    from torchvision import models
     resnet34 = models.resnet34(pretrained=True)
     num_para = compute_num_parameters(resnet34)
     # Q5
     ch_in=3
     n_classes=1000
-    train_GAPNet()
+    backbone()
     # model = MobileNetV1(ch_in=ch_in, n_classes=n_classes)
