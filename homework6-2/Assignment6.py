@@ -16,7 +16,7 @@ def compute_num_parameters(net:nn.Module):
     Return the estimated number of parameters Q1. 
     """
     num_para = sum(p.numel() for p in net.parameters() if p.requires_grad)
-    # print("The number of parameters is: ", num_para)
+    print("The number of parameters is: ", num_para)
     return num_para
 
 
@@ -181,7 +181,8 @@ def backbone():
     resnet18.eval()
     with torch.no_grad():
         features = resnet18(img)
-    # print("Extracted features shape:", features.shape)
+    print("Extracted features shape:", features.shape)
+    print("Extracted features:", features)
 
     return features
 
@@ -190,12 +191,15 @@ def transfer_learning():
     Insert your code here, Q4
     """
     resnet18 = models.resnet18(pretrained=True)
-    resnet18.fc.out_features = 10
+    num_features = resnet18.fc.in_features
+    resnet18.fc = nn.Linear(num_features, 10)
 
     for param in resnet18.parameters():
         param.requires_grad = False
     resnet18.fc.weight.requires_grad = True
     resnet18.fc.bias.requires_grad = True
+
+    # print("structure of modified resnet18:\n", resnet18)
     
     epochs = 10
     lr = 0.001
@@ -232,22 +236,87 @@ def transfer_learning():
                 running_loss = 0.0
     torch.save(resnet18.state_dict(), "./Res_net_10epoch.pth")
 
+class DepthWiseConv(nn.Module):
+    def __init__(self, in_channels, out_channels, stride):
+        super().__init__()
+
+        self.depthwise_conv = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=stride, padding=1, groups=in_channels, bias=False)
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        self.relu1 = nn.ReLU(inplace=True)
+
+        self.pointwise_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.relu2 = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        x = self.depthwise_conv(x)
+        x = self.bn1(x)
+        x = self.relu1(x)
+
+        x = self.pointwise_conv(x)
+        x = self.bn2(x)
+        x = self.relu2(x)
+
+        return x
 
 
 class MobileNetV1(nn.Module):
     """Define MobileNetV1 please keep the strucutre of the class Q5"""
-    # def __init__(self, ch_in, n_classes):
+    def __init__(self, ch_in, n_classes):
+        super().__init__()
 
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True)
+        )
 
-    # def forward(self, x):
+        self.blocks = nn.Sequential(
+            DepthWiseConv(32, 64, stride=1),
+            DepthWiseConv(64, 128, stride=2),
+            DepthWiseConv(128, 128, stride=1),
+            DepthWiseConv(128, 256, stride=2),
+            DepthWiseConv(256, 256, stride=1),
+            DepthWiseConv(256, 512, stride=2),
+
+            DepthWiseConv(512, 512, stride=1),
+            DepthWiseConv(512, 512, stride=1),
+            DepthWiseConv(512, 512, stride=1),
+            DepthWiseConv(512, 512, stride=1),
+            DepthWiseConv(512, 512, stride=1),
+
+            DepthWiseConv(512, 1024, stride=2),
+            DepthWiseConv(1024, 1024, stride=1)
+        )
+        
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Linear(1024, n_classes)
+
+    def forward(self, x):
+        x = self.conv1(x)
+
+        x = self.blocks(x)
+
+        x = self.avgpool(x)
+
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+
+        return x
 
     
 if __name__ == '__main__':
     #Q1
-    resnet34 = models.resnet34(pretrained=True)
-    num_para = compute_num_parameters(resnet34)
+    # resnet34 = models.resnet34(pretrained=True)
+    # num_para = compute_num_parameters(resnet34)
+    backbone()
     # Q5
     ch_in=3
     n_classes=1000
-    transfer_learning()
+    model = MobileNetV1(ch_in=ch_in, n_classes=n_classes)
+    x = torch.randn(1, 3, 224, 224)
+    y = model(x)
+    print("Output shape of MobileNetV1:", y.shape)
+    # transfer_learning()
+    # transfer_learning()
     # model = MobileNetV1(ch_in=ch_in, n_classes=n_classes)
