@@ -171,12 +171,12 @@ def backbone():
 
     img_path = "cat_eye.jpg"
     img = torchvision.io.read_image(img_path)
-    img = img.float() / 255.0  # Normalize to [0, 1]
+    img = img.float() / 255.0 
 
     transform = transforms.Compose(
         [ transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     img = transform(img)
-    img = img.unsqueeze(0)  # Add batch dimension
+    img = img.unsqueeze(0)  
 
     resnet18.eval()
     with torch.no_grad():
@@ -189,6 +189,50 @@ def transfer_learning():
     """
     Insert your code here, Q4
     """
+    resnet18 = models.resnet18(pretrained=True)
+    resnet18.fc.out_features = 10
+
+    for param in resnet18.parameters():
+        param.requires_grad = False
+    resnet18.fc.weight.requires_grad = True
+    resnet18.fc.bias.requires_grad = True
+    
+    epochs = 10
+    lr = 0.001
+    momentum = 0.9
+    batch_size = 4
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(filter(lambda p: p.requires_grad, resnet18.parameters()), lr=lr, momentum=momentum)
+
+    transform = transforms.Compose(
+        [transforms.ToTensor(),
+         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+    trainset = torchvision.datasets.CIFAR10(root='./cifar10', train=True,
+                                            download=True, transform=transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                              shuffle=True, num_workers=2)
+    for epoch in range(epochs):
+        running_loss = 0.0
+
+        for i, data in enumerate(trainloader, 0):
+            inputs, labels = data
+
+            optimizer.zero_grad()
+
+            outputs = resnet18(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+            if i % 2000 == 1999:
+                print(f'[Epoch {epoch + 1}, Mini-batch {i + 1}] loss: {running_loss / 2000:.3f}')
+                running_loss = 0.0
+    torch.save(resnet18.state_dict(), "./Res_net_10epoch.pth")
+
+
 
 class MobileNetV1(nn.Module):
     """Define MobileNetV1 please keep the strucutre of the class Q5"""
@@ -205,5 +249,5 @@ if __name__ == '__main__':
     # Q5
     ch_in=3
     n_classes=1000
-    backbone()
+    transfer_learning()
     # model = MobileNetV1(ch_in=ch_in, n_classes=n_classes)
